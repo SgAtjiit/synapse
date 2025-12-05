@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'crypto';
 import Room from '../models/Room.js';
 import Message from '../models/Message.js';
 import { streamGeminiResponse } from './gemini.js';
@@ -27,7 +26,7 @@ function getUserColor(username) {
 export function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
-    
+
     let currentRoom = null;
     let currentUser = null;
 
@@ -35,7 +34,7 @@ export function setupSocketHandlers(io) {
     socket.on('join-room', async ({ roomId, username }) => {
       try {
         console.log(`${username} joining room ${roomId}`);
-        
+
         // Leave previous room if any
         if (currentRoom) {
           socket.leave(currentRoom);
@@ -49,7 +48,7 @@ export function setupSocketHandlers(io) {
         // Join new room
         socket.join(roomId);
         currentRoom = roomId;
-        
+
         // Create user object
         currentUser = {
           id: socket.id,
@@ -66,10 +65,10 @@ export function setupSocketHandlers(io) {
 
         // Get or create room
         const room = await Room.findOrCreate(roomId);
-        
+
         // Get chat history
         const messages = await Message.getByRoom(roomId);
-        
+
         // Get all users in room
         const users = Array.from(roomUsers.get(roomId).values());
 
@@ -82,7 +81,7 @@ export function setupSocketHandlers(io) {
 
         // Notify others
         socket.to(roomId).emit('user-joined', { user: currentUser });
-        
+
         console.log(`${username} joined room ${roomId}, ${users.length} users now`);
       } catch (error) {
         console.error('Error joining room:', error);
@@ -93,10 +92,10 @@ export function setupSocketHandlers(io) {
     // Send Message
     socket.on('send-message', async ({ roomId, content }) => {
       if (!currentUser || !currentRoom) return;
-      
+
       try {
         const isAICommand = content.trim().toLowerCase().startsWith('/ai ');
-        
+
         // Create user message
         const messageData = {
           id: generateId(),
@@ -107,7 +106,7 @@ export function setupSocketHandlers(io) {
           isAI: false,
           timestamp: new Date(),
         };
-        
+
         // Save and broadcast user message
         const savedMessage = await Message.createMessage(messageData);
         io.to(roomId).emit('new-message', savedMessage);
@@ -115,14 +114,15 @@ export function setupSocketHandlers(io) {
         // Handle AI command
         if (isAICommand) {
           const prompt = content.slice(4).trim(); // Remove '/ai '
-          
+
           if (!prompt) {
             return;
           }
 
           // Get current document content for context
           const room = await Room.findOne({ id: roomId });
-          const documentContext = room?.documentContent || '';
+          // Use the first document content as context for now, or empty
+          const documentContext = room?.documents?.[0]?.content || '';
 
           // Create AI response placeholder
           const aiMessageId = generateId();
@@ -136,13 +136,13 @@ export function setupSocketHandlers(io) {
             isStreaming: true,
             timestamp: new Date(),
           };
-          
+
           // Send placeholder to all clients
           io.to(roomId).emit('new-message', aiMessageData);
 
           // Stream AI response
           let fullResponse = '';
-          
+
           try {
             for await (const token of streamGeminiResponse(prompt, documentContext)) {
               fullResponse += token;
@@ -173,18 +173,19 @@ export function setupSocketHandlers(io) {
     });
 
     // Document Change
-    socket.on('document-change', async ({ roomId, content }) => {
+    socket.on('document-change', async ({ roomId, documentId, content }) => {
       if (!currentUser || !currentRoom) return;
-      
+
       try {
         // Update in database
         const room = await Room.findOne({ id: roomId });
         if (room) {
-          await room.updateDocument(content);
+          await room.updateDocument(documentId, content);
         }
 
         // Broadcast to others (not sender)
         socket.to(roomId).emit('document-updated', {
+          documentId,
           content,
           userId: socket.id,
         });
@@ -193,10 +194,73 @@ export function setupSocketHandlers(io) {
       }
     });
 
+    // Create Document
+    socket.on('create-document', async ({ roomId, title }) => {
+      if (!currentUser || !currentRoom) return;
+
+      try {
+        const room = await Room.findOne({ id: roomId });
+        if (room) {
+          const newDoc = {
+            id: generateId(),
+            title: title || 'Untitled Document',
+            content: '',
+            lastModified: new Date(),
+          };
+          await room.createDocument(newDoc);
+
+          io.to(roomId).emit('document-created', newDoc);
+        }
+      } catch (error) {
+        console.error('Error creating document:', error);
+      }
+    });
+
+    // Delete Document
+    socket.on('delete-document', async ({ roomId, documentId }) => {
+      if (!currentUser || !currentRoom) return;
+
+      try {
+        const room = await Room.findOne({ id: roomId });
+        if (room) {
+          await room.deleteDocument(documentId);
+          io.to(roomId).emit('document-deleted', { documentId });
+        }
+      } catch (error) {
+        console.error('Error deleting document:', error);
+      }
+    });
+
+    // AI Format Document
+    socket.on('ai-format-document', async ({ roomId, documentId, content }) => {
+      if (!currentUser || !currentRoom) return;
+
+      try {
+        const { formatDocumentWithAI } = await import('./gemini.js');
+        const formattedContent = await formatDocumentWithAI(content);
+
+        // Update in database
+        const room = await Room.findOne({ id: roomId });
+        if (room) {
+          await room.updateDocument(documentId, formattedContent);
+        }
+
+        // Broadcast update
+        io.to(roomId).emit('document-updated', {
+          documentId,
+          content: formattedContent,
+          userId: 'ai',
+        });
+      } catch (error) {
+        console.error('Error formatting document:', error);
+        socket.emit('error', { message: 'Failed to format document' });
+      }
+    });
+
     // Typing indicators
     socket.on('typing-start', ({ roomId }) => {
       if (!currentUser || !currentRoom) return;
-      
+
       const users = roomUsers.get(roomId);
       if (users && users.has(socket.id)) {
         users.get(socket.id).isTyping = true;
@@ -206,7 +270,7 @@ export function setupSocketHandlers(io) {
 
     socket.on('typing-stop', ({ roomId }) => {
       if (!currentUser || !currentRoom) return;
-      
+
       const users = roomUsers.get(roomId);
       if (users && users.has(socket.id)) {
         users.get(socket.id).isTyping = false;
@@ -218,18 +282,18 @@ export function setupSocketHandlers(io) {
     socket.on('leave-room', ({ roomId }) => {
       if (currentRoom === roomId) {
         socket.leave(roomId);
-        
+
         const users = roomUsers.get(roomId);
         if (users) {
           users.delete(socket.id);
           io.to(roomId).emit('user-left', { userId: socket.id });
-          
+
           // Clean up empty rooms
           if (users.size === 0) {
             roomUsers.delete(roomId);
           }
         }
-        
+
         currentRoom = null;
         currentUser = null;
       }
@@ -238,13 +302,13 @@ export function setupSocketHandlers(io) {
     // Disconnect
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${socket.id}`);
-      
+
       if (currentRoom) {
         const users = roomUsers.get(currentRoom);
         if (users) {
           users.delete(socket.id);
           io.to(currentRoom).emit('user-left', { userId: socket.id });
-          
+
           if (users.size === 0) {
             roomUsers.delete(currentRoom);
           }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Message, Room, PresenceUser } from '@/types';
+import { Message, Room, PresenceUser, Document } from '@/types';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
@@ -12,7 +12,10 @@ interface UseSocketReturn {
   joinRoom: (roomId: string, username: string) => void;
   leaveRoom: () => void;
   sendMessage: (content: string) => void;
-  updateDocument: (content: string) => void;
+  updateDocument: (documentId: string, content: string) => void;
+  createDocument: (title: string) => void;
+  deleteDocument: (documentId: string) => void;
+  aiFormatDocument: (documentId: string, content: string) => void;
   setTyping: (isTyping: boolean) => void;
 }
 
@@ -88,12 +91,26 @@ export function useSocket(): UseSocketReturn {
       }));
     });
 
-    socket.on('document-updated', (data: { content: string; userId: string }) => {
-      setRoom(prev => prev ? { ...prev, documentContent: data.content } : null);
+    socket.on('document-updated', (data: { documentId: string; content: string; userId: string }) => {
+      setRoom(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          documents: prev.documents.map(d => d.id === data.documentId ? { ...d, content: data.content } : d)
+        };
+      });
+    });
+
+    socket.on('document-created', (doc: Document) => {
+      setRoom(prev => prev ? { ...prev, documents: [...prev.documents, doc] } : null);
+    });
+
+    socket.on('document-deleted', (data: { documentId: string }) => {
+      setRoom(prev => prev ? { ...prev, documents: prev.documents.filter(d => d.id !== data.documentId) } : null);
     });
 
     socket.on('user-typing', (data: { userId: string; isTyping: boolean }) => {
-      setUsers(prev => prev.map(u => 
+      setUsers(prev => prev.map(u =>
         u.id === data.userId ? { ...u, isTyping: data.isTyping } : u
       ));
     });
@@ -126,26 +143,45 @@ export function useSocket(): UseSocketReturn {
 
   const sendMessage = useCallback((content: string) => {
     if (socketRef.current && currentRoomRef.current) {
-      socketRef.current.emit('send-message', { 
-        roomId: currentRoomRef.current, 
-        content 
+      socketRef.current.emit('send-message', {
+        roomId: currentRoomRef.current,
+        content
       });
     }
   }, []);
 
-  const updateDocument = useCallback((content: string) => {
+  const updateDocument = useCallback((documentId: string, content: string) => {
     if (socketRef.current && currentRoomRef.current) {
-      socketRef.current.emit('document-change', { 
-        roomId: currentRoomRef.current, 
-        content 
+      socketRef.current.emit('document-change', {
+        roomId: currentRoomRef.current,
+        documentId,
+        content
       });
+    }
+  }, []);
+
+  const createDocument = useCallback((title: string) => {
+    if (socketRef.current && currentRoomRef.current) {
+      socketRef.current.emit('create-document', { roomId: currentRoomRef.current, title });
+    }
+  }, []);
+
+  const deleteDocument = useCallback((documentId: string) => {
+    if (socketRef.current && currentRoomRef.current) {
+      socketRef.current.emit('delete-document', { roomId: currentRoomRef.current, documentId });
+    }
+  }, []);
+
+  const aiFormatDocument = useCallback((documentId: string, content: string) => {
+    if (socketRef.current && currentRoomRef.current) {
+      socketRef.current.emit('ai-format-document', { roomId: currentRoomRef.current, documentId, content });
     }
   }, []);
 
   const setTyping = useCallback((isTyping: boolean) => {
     if (socketRef.current && currentRoomRef.current) {
-      socketRef.current.emit(isTyping ? 'typing-start' : 'typing-stop', { 
-        roomId: currentRoomRef.current 
+      socketRef.current.emit(isTyping ? 'typing-start' : 'typing-stop', {
+        roomId: currentRoomRef.current
       });
     }
   }, []);
@@ -159,6 +195,9 @@ export function useSocket(): UseSocketReturn {
     leaveRoom,
     sendMessage,
     updateDocument,
+    createDocument,
+    deleteDocument,
+    aiFormatDocument,
     setTyping,
   };
 }

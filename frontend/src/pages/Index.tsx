@@ -14,6 +14,9 @@ const Index = () => {
     leaveRoom,
     sendMessage,
     updateDocument,
+    createDocument,
+    deleteDocument,
+    aiFormatDocument,
     setTyping,
   } = useSocket();
 
@@ -45,6 +48,9 @@ const Index = () => {
       isConnected={isConnected}
       onSendMessage={sendMessage}
       onDocumentChange={updateDocument}
+      onCreateDocument={createDocument}
+      onDeleteDocument={deleteDocument}
+      onAiFormat={aiFormatDocument}
       onTyping={setTyping}
       onLeave={handleLeave}
     />

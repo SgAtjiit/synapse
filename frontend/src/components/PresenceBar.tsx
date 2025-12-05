@@ -1,4 +1,4 @@
-import { LogOut, Zap, Wifi, WifiOff } from 'lucide-react';
+import { LogOut, Zap, Wifi, WifiOff, PanelLeft, PanelRight, FileText, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PresenceUser } from '@/types';
 import { cn } from '@/lib/utils';
@@ -9,9 +9,23 @@ interface PresenceBarProps {
   currentUser: string;
   isConnected: boolean;
   onLeave: () => void;
+  showChat: boolean;
+  onToggleChat: () => void;
+  showDocuments: boolean;
+  onToggleDocuments: () => void;
 }
 
-export function PresenceBar({ roomId, users, currentUser, isConnected, onLeave }: PresenceBarProps) {
+export function PresenceBar({
+  roomId,
+  users,
+  currentUser,
+  isConnected,
+  onLeave,
+  showChat,
+  onToggleChat,
+  showDocuments,
+  onToggleDocuments
+}: PresenceBarProps) {
   return (
     <header className="h-14 border-b border-border bg-card/80 backdrop-blur-sm flex items-center justify-between px-4">
       {/* Left: Logo & Room */}
@@ -22,9 +36,32 @@ export function PresenceBar({ roomId, users, currentUser, isConnected, onLeave }
           </div>
           <span className="font-semibold text-foreground hidden sm:inline">Synapse</span>
         </div>
-        
+
         <div className="h-6 w-px bg-border" />
-        
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleChat}
+            className={cn("h-8 w-8", showChat && "bg-accent text-accent-foreground")}
+            title="Toggle Chat"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleDocuments}
+            className={cn("h-8 w-8", showDocuments && "bg-accent text-accent-foreground")}
+            title="Toggle Documents"
+          >
+            <FileText className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <div className="h-6 w-px bg-border" />
+
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Room:</span>
           <code className="px-2 py-0.5 rounded-md bg-secondary font-mono text-sm text-foreground">
@@ -43,7 +80,7 @@ export function PresenceBar({ roomId, users, currentUser, isConnected, onLeave }
                 "relative w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-xs font-bold transition-transform hover:scale-110 hover:z-10",
                 user.username === currentUser && "ring-2 ring-primary ring-offset-2 ring-offset-background"
               )}
-              style={{ 
+              style={{
                 backgroundColor: user.color,
                 zIndex: users.length - index
               }}
@@ -79,7 +116,7 @@ export function PresenceBar({ roomId, users, currentUser, isConnected, onLeave }
             </>
           )}
         </div>
-        
+
         <Button variant="ghost" size="sm" onClick={onLeave} className="text-muted-foreground hover:text-destructive">
           <LogOut className="w-4 h-4" />
           <span className="hidden sm:inline ml-1">Leave</span>
