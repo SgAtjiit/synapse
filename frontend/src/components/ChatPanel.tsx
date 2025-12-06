@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, Sparkles, Bot } from 'lucide-react';
+import { Send, Sparkles, Bot, Copy, Check } from 'lucide-react';
 import { Message, PresenceUser } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -15,8 +15,19 @@ interface ChatPanelProps {
 
 export function ChatPanel({ messages, users, currentUser, onSendMessage, onTyping }: ChatPanelProps) {
   const [input, setInput] = useState('');
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const copyMessage = async (messageId: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,11 +36,11 @@ export function ChatPanel({ messages, users, currentUser, onSendMessage, onTypin
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     onTyping(true);
-    
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     typingTimeoutRef.current = setTimeout(() => {
       onTyping(false);
     }, 1000);
@@ -74,55 +85,96 @@ export function ChatPanel({ messages, users, currentUser, onSendMessage, onTypin
             </p>
           </div>
         ) : (
-          messages.map((message, index) => (
-            <div
-              key={message.id}
-              className={cn(
-                "animate-fade-in",
-                message.isAI && "ai-message-gradient rounded-xl p-3 border border-synapse-ai/20"
-              )}
-              style={{ animationDelay: `${index * 0.05}s` }}
-            >
-              <div className="flex items-start gap-3">
-                {message.isAI ? (
-                  <div className="w-8 h-8 rounded-lg bg-synapse-ai/20 border border-synapse-ai/30 flex items-center justify-center shrink-0">
-                    <Bot className="w-4 h-4 text-synapse-ai" />
-                  </div>
-                ) : (
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ backgroundColor: getUserColor(message.username) }}
-                  >
-                    {message.username.charAt(0).toUpperCase()}
-                  </div>
+          messages.map((message, index) => {
+            const isOwnMessage = message.username === currentUser;
+            const isAI = message.isAI;
+
+            return (
+              <div
+                key={message.id}
+                className={cn(
+                  "animate-fade-in flex",
+                  isOwnMessage ? "justify-end" : "justify-start"
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className={cn(
-                      "font-medium text-sm",
-                      message.isAI ? "text-synapse-ai" : "text-foreground"
-                    )}>
-                      {message.isAI ? 'Synapse AI' : message.username}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTime(message.timestamp)}
-                    </span>
-                  </div>
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <div
+                  className={cn(
+                    "max-w-[80%] rounded-2xl p-3",
+                    isAI && "ai-message-gradient border border-synapse-ai/20 rounded-xl",
+                    isOwnMessage && !isAI && "bg-primary text-primary-foreground rounded-br-sm",
+                    !isOwnMessage && !isAI && "bg-secondary/80 rounded-bl-sm"
+                  )}
+                >
+                  {/* Avatar and name for non-own messages */}
+                  {!isOwnMessage && (
+                    <div className="flex items-center gap-2 mb-1">
+                      {isAI ? (
+                        <div className="w-6 h-6 rounded-lg bg-synapse-ai/20 border border-synapse-ai/30 flex items-center justify-center shrink-0">
+                          <Bot className="w-3 h-3 text-synapse-ai" />
+                        </div>
+                      ) : (
+                        <div
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                          style={{ backgroundColor: getUserColor(message.username) }}
+                        >
+                          {message.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className={cn(
+                        "font-medium text-xs",
+                        isAI ? "text-synapse-ai" : "text-foreground"
+                      )}>
+                        {isAI ? 'Synapse AI' : message.username}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Message content */}
                   <p className={cn(
-                    "text-sm mt-1 whitespace-pre-wrap break-words",
-                    message.isAI ? "text-foreground/90" : "text-muted-foreground"
+                    "text-sm whitespace-pre-wrap break-words",
+                    isAI && "text-foreground/90",
+                    isOwnMessage && !isAI && "text-primary-foreground",
+                    !isOwnMessage && !isAI && "text-foreground"
                   )}>
                     {message.content}
                     {message.isStreaming && (
                       <span className="inline-block w-2 h-4 ml-1 bg-synapse-ai animate-pulse" />
                     )}
                   </p>
+
+                  {/* Timestamp and Copy */}
+                  <div className={cn(
+                    "flex items-center gap-2 mt-1",
+                    isOwnMessage ? "justify-end" : "justify-start"
+                  )}>
+                    <span className={cn(
+                      "text-[10px]",
+                      isOwnMessage && !isAI ? "text-primary-foreground/70" : "text-muted-foreground"
+                    )}>
+                      {formatTime(message.timestamp)}
+                    </span>
+                    <button
+                      onClick={() => copyMessage(message.id, message.content)}
+                      className={cn(
+                        "p-1 rounded hover:bg-black/10 transition-colors",
+                        isOwnMessage && !isAI ? "text-primary-foreground/50 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      )}
+                      title="Copy message"
+                    >
+                      {copiedMessageId === message.id ? (
+                        <Check className="w-3 h-3 text-synapse-success" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
-        
+
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground animate-fade-in">
@@ -136,7 +188,7 @@ export function ChatPanel({ messages, users, currentUser, onSendMessage, onTypin
             </span>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 

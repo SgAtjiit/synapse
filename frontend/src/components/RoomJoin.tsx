@@ -1,16 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Zap, Users, FileText, Sparkles } from 'lucide-react';
+import { Zap, Users, FileText, Sparkles, LogOut, Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RoomJoinProps {
   onJoin: (roomId: string, username: string) => void;
   isConnected: boolean;
+  defaultUsername?: string;
+  userEmail?: string;
 }
 
-export function RoomJoin({ onJoin, isConnected }: RoomJoinProps) {
+export function RoomJoin({ onJoin, isConnected, defaultUsername = '', userEmail = '' }: RoomJoinProps) {
   const [roomId, setRoomId] = useState('');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(defaultUsername);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Update username when defaultUsername changes (e.g., on initial auth load)
+  useEffect(() => {
+    if (defaultUsername && !username) {
+      setUsername(defaultUsername);
+    }
+  }, [defaultUsername, username]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +42,8 @@ export function RoomJoin({ onJoin, isConnected }: RoomJoinProps) {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-4 synapse-glow">
-            <Zap className="w-8 h-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl overflow-hidden mb-4 synapse-glow">
+            <img src="/logo.png" alt="Synapse" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-bold text-foreground synapse-glow-text">
             Synapse
@@ -39,6 +52,39 @@ export function RoomJoin({ onJoin, isConnected }: RoomJoinProps) {
             Real-Time Collaborative AI Workspace
           </p>
         </div>
+
+        {/* User Info */}
+        {userEmail && (
+          <div className="flex items-center justify-between p-3 mb-6 rounded-xl bg-card/50 border border-border animate-fade-in">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <span className="text-primary font-semibold">
+                  {(defaultUsername || userEmail).charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {defaultUsername || 'User'}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {userEmail}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                await logout();
+                navigate('/auth');
+              }}
+              className="shrink-0 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
         {/* Features */}
         <div className="grid grid-cols-3 gap-4 mb-8">
@@ -72,7 +118,7 @@ export function RoomJoin({ onJoin, isConnected }: RoomJoinProps) {
                   className="bg-secondary/50"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Room ID
@@ -127,6 +173,18 @@ export function RoomJoin({ onJoin, isConnected }: RoomJoinProps) {
         <p className="text-center text-xs text-muted-foreground mt-6 animate-fade-in" style={{ animationDelay: '0.5s' }}>
           💡 Tip: Use <code className="px-1.5 py-0.5 rounded bg-secondary font-mono">/ai</code> in chat to invoke AI assistance
         </p>
+
+        {/* View History Button */}
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full mt-4 text-muted-foreground hover:text-foreground animate-fade-in"
+          style={{ animationDelay: '0.6s' }}
+          onClick={() => navigate('/history')}
+        >
+          <Clock className="w-4 h-4 mr-2" />
+          View Room History
+        </Button>
       </div>
     </div>
   );

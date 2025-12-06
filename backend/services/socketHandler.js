@@ -1,5 +1,6 @@
 import Room from '../models/Room.js';
 import Message from '../models/Message.js';
+import UserHistory from '../models/UserHistory.js';
 import { streamGeminiResponse } from './gemini.js';
 
 // Store connected users by room
@@ -29,9 +30,10 @@ export function setupSocketHandlers(io) {
 
     let currentRoom = null;
     let currentUser = null;
+    let currentFirebaseUid = null;
 
     // Join Room
-    socket.on('join-room', async ({ roomId, username }) => {
+    socket.on('join-room', async ({ roomId, username, firebaseUid }) => {
       try {
         console.log(`${username} joining room ${roomId}`);
 
@@ -48,6 +50,7 @@ export function setupSocketHandlers(io) {
         // Join new room
         socket.join(roomId);
         currentRoom = roomId;
+        currentFirebaseUid = firebaseUid;
 
         // Create user object
         currentUser = {
@@ -71,6 +74,20 @@ export function setupSocketHandlers(io) {
 
         // Get all users in room
         const users = Array.from(roomUsers.get(roomId).values());
+
+        // Record user history if firebase uid provided
+        if (firebaseUid) {
+          try {
+            await UserHistory.recordVisit({
+              firebaseUid,
+              roomId,
+              roomName: room.name || `Room ${roomId}`,
+              username,
+            });
+          } catch (historyError) {
+            console.error('Error recording history:', historyError);
+          }
+        }
 
         // Send room data to joining user
         socket.emit('room-joined', {
@@ -110,6 +127,15 @@ export function setupSocketHandlers(io) {
         // Save and broadcast user message
         const savedMessage = await Message.createMessage(messageData);
         io.to(roomId).emit('new-message', savedMessage);
+
+        // Increment message count in user history
+        if (currentFirebaseUid) {
+          try {
+            await UserHistory.incrementMessageCount(currentFirebaseUid, roomId);
+          } catch (historyError) {
+            console.error('Error incrementing message count:', historyError);
+          }
+        }
 
         // Handle AI command
         if (isAICommand) {

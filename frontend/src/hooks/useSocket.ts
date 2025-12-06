@@ -9,13 +9,12 @@ interface UseSocketReturn {
   room: Room | null;
   messages: Message[];
   users: PresenceUser[];
-  joinRoom: (roomId: string, username: string) => void;
+  joinRoom: (roomId: string, username: string, firebaseUid?: string) => void;
   leaveRoom: () => void;
   sendMessage: (content: string) => void;
   updateDocument: (documentId: string, content: string) => void;
   createDocument: (title: string) => void;
   deleteDocument: (documentId: string) => void;
-  aiFormatDocument: (documentId: string, content: string) => void;
   setTyping: (isTyping: boolean) => void;
 }
 
@@ -124,10 +123,10 @@ export function useSocket(): UseSocketReturn {
     };
   }, []);
 
-  const joinRoom = useCallback((roomId: string, username: string) => {
+  const joinRoom = useCallback((roomId: string, username: string, firebaseUid?: string) => {
     if (socketRef.current) {
       currentRoomRef.current = roomId;
-      socketRef.current.emit('join-room', { roomId, username });
+      socketRef.current.emit('join-room', { roomId, username, firebaseUid });
     }
   }, []);
 
@@ -172,12 +171,6 @@ export function useSocket(): UseSocketReturn {
     }
   }, []);
 
-  const aiFormatDocument = useCallback((documentId: string, content: string) => {
-    if (socketRef.current && currentRoomRef.current) {
-      socketRef.current.emit('ai-format-document', { roomId: currentRoomRef.current, documentId, content });
-    }
-  }, []);
-
   const setTyping = useCallback((isTyping: boolean) => {
     if (socketRef.current && currentRoomRef.current) {
       socketRef.current.emit(isTyping ? 'typing-start' : 'typing-stop', {
@@ -197,7 +190,6 @@ export function useSocket(): UseSocketReturn {
     updateDocument,
     createDocument,
     deleteDocument,
-    aiFormatDocument,
     setTyping,
   };
 }

@@ -5,6 +5,9 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { setupSocketHandlers } from './services/socketHandler.js';
+import UserHistory from './models/UserHistory.js';
+import Room from './models/Room.js';
+import Message from './models/Message.js';
 
 // Load environment variables
 dotenv.config();
@@ -30,8 +33,8 @@ const io = new Server(httpServer, {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
   });
@@ -46,8 +49,45 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       websocket: 'ws://localhost:' + (process.env.PORT || 3001),
+      history: '/api/history/:firebaseUid',
+      room: '/api/room/:roomId',
     },
   });
+});
+
+// Get user's room history
+app.get('/api/history/:firebaseUid', async (req, res) => {
+  try {
+    const { firebaseUid } = req.params;
+    const history = await UserHistory.getByUser(firebaseUid);
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch history' });
+  }
+});
+
+// Get room details (for history view)
+app.get('/api/room/:roomId', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    const room = await Room.findOne({ id: roomId });
+    if (!room) {
+      return res.status(404).json({ success: false, error: 'Room not found' });
+    }
+
+    const messages = await Message.getByRoom(roomId);
+
+    res.json({
+      success: true,
+      room: room.toObject(),
+      messages,
+    });
+  } catch (error) {
+    console.error('Error fetching room:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch room' });
+  }
 });
 
 // Connect to MongoDB

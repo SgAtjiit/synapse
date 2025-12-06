@@ -6,6 +6,11 @@ import { PresenceBar } from '@/components/PresenceBar';
 import { Message, Room, PresenceUser } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -26,7 +31,6 @@ interface WorkspaceProps {
   onDocumentChange: (documentId: string, content: string) => void;
   onCreateDocument: (title: string) => void;
   onDeleteDocument: (documentId: string) => void;
-  onAiFormat: (documentId: string, content: string) => void;
   onTyping: (isTyping: boolean) => void;
   onLeave: () => void;
 }
@@ -41,7 +45,6 @@ export function Workspace({
   onDocumentChange,
   onCreateDocument,
   onDeleteDocument,
-  onAiFormat,
   onTyping,
   onLeave,
 }: WorkspaceProps) {
@@ -110,12 +113,6 @@ export function Workspace({
     }
   }, [activeDocumentId, onDocumentChange]);
 
-  const handleAiFormat = useCallback((content: string) => {
-    if (activeDocumentId) {
-      onAiFormat(activeDocumentId, content);
-    }
-  }, [activeDocumentId, onAiFormat]);
-
   const handleCreateDocument = () => {
     setShowNewDocDialog(true);
   };
@@ -152,33 +149,55 @@ export function Workspace({
         onToggleDocuments={() => setShowDocuments(!showDocuments)}
       />
 
-      <div className="flex-1 flex overflow-hidden">
+      <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
         {/* Chat Panel - Left */}
         {showChat && (
-          <div className="w-[400px] min-w-[320px] max-w-[500px] flex-shrink-0 border-r border-border transition-all duration-300">
-            <ChatPanel
-              messages={messages}
-              users={usersWithColors}
-              currentUser={currentUser}
-              onSendMessage={onSendMessage}
-              onTyping={onTyping}
-            />
-          </div>
+          <>
+            <ResizablePanel
+              defaultSize={25}
+              minSize={15}
+              maxSize={40}
+              className="transition-all duration-200"
+            >
+              <ChatPanel
+                messages={messages}
+                users={usersWithColors}
+                currentUser={currentUser}
+                onSendMessage={onSendMessage}
+                onTyping={onTyping}
+              />
+            </ResizablePanel>
+            <ResizableHandle withHandle className="bg-border hover:bg-primary/50 transition-colors" />
+          </>
         )}
 
         {/* Document List - Sidebar */}
         {showDocuments && (
-          <DocumentList
-            documents={room.documents}
-            activeDocumentId={activeDocumentId}
-            onSelect={setActiveDocumentId}
-            onCreate={handleCreateDocument}
-            onDelete={onDeleteDocument}
-          />
+          <>
+            <ResizablePanel
+              defaultSize={15}
+              minSize={10}
+              maxSize={25}
+              className="transition-all duration-200"
+            >
+              <DocumentList
+                documents={room.documents}
+                activeDocumentId={activeDocumentId}
+                onSelect={setActiveDocumentId}
+                onCreate={handleCreateDocument}
+                onDelete={onDeleteDocument}
+              />
+            </ResizablePanel>
+            <ResizableHandle withHandle className="bg-border hover:bg-primary/50 transition-colors" />
+          </>
         )}
 
         {/* Document Editor - Right */}
-        <div className="flex-1 min-w-0 transition-all duration-300">
+        <ResizablePanel
+          defaultSize={showChat && showDocuments ? 60 : showChat || showDocuments ? 75 : 100}
+          minSize={30}
+          className="transition-all duration-200"
+        >
           {activeDocument ? (
             <DocumentEditor
               key={activeDocument.id} // Force re-render on doc switch
@@ -186,15 +205,14 @@ export function Workspace({
               users={usersWithColors}
               currentUser={currentUser}
               onContentChange={handleDocumentChange}
-              onAiFormat={handleAiFormat}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               Select or create a document to start editing
             </div>
           )}
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       {/* New Document Dialog */}
       <Dialog open={showNewDocDialog} onOpenChange={setShowNewDocDialog}>

@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { RoomJoin } from '@/components/RoomJoin';
 import { Workspace } from '@/components/Workspace';
 import { useSocket } from '@/hooks/useSocket';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
+  const { user } = useAuth();
   const [currentUser, setCurrentUser] = useState<string>('');
   const {
     isConnected,
@@ -16,14 +18,20 @@ const Index = () => {
     updateDocument,
     createDocument,
     deleteDocument,
-    aiFormatDocument,
     setTyping,
   } = useSocket();
 
+  // Set default username from auth user
+  useEffect(() => {
+    if (user?.displayName && !currentUser) {
+      setCurrentUser(user.displayName);
+    }
+  }, [user, currentUser]);
+
   const handleJoin = useCallback((roomId: string, username: string) => {
     setCurrentUser(username);
-    joinRoom(roomId, username);
-  }, [joinRoom]);
+    joinRoom(roomId, username, user?.uid);
+  }, [joinRoom, user?.uid]);
 
   const handleLeave = useCallback(() => {
     leaveRoom();
@@ -35,6 +43,8 @@ const Index = () => {
       <RoomJoin
         onJoin={handleJoin}
         isConnected={isConnected}
+        defaultUsername={user?.displayName || ''}
+        userEmail={user?.email || ''}
       />
     );
   }
@@ -50,7 +60,6 @@ const Index = () => {
       onDocumentChange={updateDocument}
       onCreateDocument={createDocument}
       onDeleteDocument={deleteDocument}
-      onAiFormat={aiFormatDocument}
       onTyping={setTyping}
       onLeave={handleLeave}
     />

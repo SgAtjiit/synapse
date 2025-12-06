@@ -19,7 +19,7 @@ interface DocumentListProps {
 
 export function DocumentList({ documents, activeDocumentId, onSelect, onCreate, onDelete }: DocumentListProps) {
     return (
-        <div className="w-64 border-r border-border bg-card/30 flex flex-col h-full">
+        <div className="w-full border-r border-border bg-card/30 flex flex-col h-full">
             <div className="p-4 border-b border-border flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Documents</h3>
                 <Button variant="ghost" size="icon" onClick={onCreate} className="h-8 w-8">

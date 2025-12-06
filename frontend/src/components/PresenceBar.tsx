@@ -1,4 +1,5 @@
-import { LogOut, Zap, Wifi, WifiOff, PanelLeft, PanelRight, FileText, MessageSquare } from 'lucide-react';
+import { useState } from 'react';
+import { LogOut, Zap, Wifi, WifiOff, FileText, MessageSquare, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PresenceUser } from '@/types';
 import { cn } from '@/lib/utils';
@@ -26,13 +27,25 @@ export function PresenceBar({
   showDocuments,
   onToggleDocuments
 }: PresenceBarProps) {
+  const [copied, setCopied] = useState(false);
+
+  const copyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
     <header className="h-14 border-b border-border bg-card/80 backdrop-blur-sm flex items-center justify-between px-4">
       {/* Left: Logo & Room */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <Zap className="w-4 h-4 text-primary" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden">
+            <img src="/logo.png" alt="Synapse" className="w-full h-full object-contain" />
           </div>
           <span className="font-semibold text-foreground hidden sm:inline">Synapse</span>
         </div>
@@ -67,6 +80,19 @@ export function PresenceBar({
           <code className="px-2 py-0.5 rounded-md bg-secondary font-mono text-sm text-foreground">
             {roomId}
           </code>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={copyRoomCode}
+            title="Copy room code"
+          >
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-synapse-success" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </Button>
         </div>
       </div>
 

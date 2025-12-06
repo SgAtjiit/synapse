@@ -11,6 +11,7 @@ import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TextAlign from '@tiptap/extension-text-align';
+import CharacterCount from '@tiptap/extension-character-count';
 import { FontSize } from '@/extensions/FontSize';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/popover";
 
 import {
-  FileText, Save, Users, Sparkles, Bold, Italic, List, ListOrdered,
+  FileText, Save, Users, Bold, Italic, List, ListOrdered,
   Download, ChevronDown, FileType, Image as ImageIcon, Table as TableIcon,
   AlignLeft, AlignCenter, AlignRight, Type, Palette, Trash2, Move
 } from 'lucide-react';
@@ -47,10 +48,9 @@ interface DocumentEditorProps {
   users: PresenceUser[];
   currentUser: string;
   onContentChange: (content: string) => void;
-  onAiFormat: (content: string) => void;
 }
 
-export function DocumentEditor({ content, users, currentUser, onContentChange, onAiFormat }: DocumentEditorProps) {
+export function DocumentEditor({ content, users, currentUser, onContentChange }: DocumentEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [imageWidth, setImageWidth] = useState('');
   const [imageHeight, setImageHeight] = useState('');
@@ -77,6 +77,7 @@ export function DocumentEditor({ content, users, currentUser, onContentChange, o
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      CharacterCount,
     ],
     content: content,
     editorProps: {
@@ -414,16 +415,6 @@ export function DocumentEditor({ content, users, currentUser, onContentChange, o
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-primary hover:text-primary"
-            onClick={() => onAiFormat(editor.getHTML())}
-          >
-            <Sparkles className="w-4 h-4" />
-            Format with AI
-          </Button>
 
           {/* Save indicator */}
           <div className={cn(
