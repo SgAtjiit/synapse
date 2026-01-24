@@ -1,28 +1,12 @@
 import Room from '../models/Room.js';
 import Message from '../models/Message.js';
 import UserHistory from '../models/UserHistory.js';
-import { streamGeminiResponse } from './gemini.js';
+// import { streamGeminiResponse } from './gemini.js';
+import { streamGroqResponse } from './groq.js';
+import { generateId, getUserColor } from '../utils/helpers.js';
 
 // Store connected users by room
 const roomUsers = new Map(); // roomId -> Map(socketId -> user)
-
-// Generate unique ID
-function generateId() {
-  return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// Get user color based on username
-function getUserColor(username) {
-  const colors = [
-    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-    '#EC4899', '#06B6D4', '#F97316', '#6366F1', '#14B8A6'
-  ];
-  let hash = 0;
-  for (let i = 0; i < username.length; i++) {
-    hash = username.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
 
 export function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
@@ -170,7 +154,7 @@ export function setupSocketHandlers(io) {
           let fullResponse = '';
 
           try {
-            for await (const token of streamGeminiResponse(prompt, documentContext)) {
+            for await (const token of streamGroqResponse(prompt, documentContext)) {
               fullResponse += token;
               io.to(roomId).emit('ai-stream', { messageId: aiMessageId, token });
             }

@@ -1,93 +1,20 @@
-import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { app, corsOptions } from './app.js';
 import { setupSocketHandlers } from './services/socketHandler.js';
-import UserHistory from './models/UserHistory.js';
-import Room from './models/Room.js';
-import Message from './models/Message.js';
 
 // Load environment variables
 dotenv.config();
 
-const app = express();
+// Create HTTP server
 const httpServer = createServer(app);
-
-// CORS configuration
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
-  methods: ['GET', 'POST'],
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
-app.use(express.json());
 
 // Socket.io setup
 const io = new Server(httpServer, {
   cors: corsOptions,
   transports: ['websocket', 'polling'],
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// API info endpoint
-app.get('/', (req, res) => {
-  res.json({
-    name: 'Synapse Backend',
-    version: '1.0.0',
-    description: 'Real-Time Collaborative AI Workspace Server',
-    endpoints: {
-      health: '/health',
-      websocket: 'ws://localhost:' + (process.env.PORT || 3001),
-      history: '/api/history/:firebaseUid',
-      room: '/api/room/:roomId',
-    },
-  });
-});
-
-// Get user's room history
-app.get('/api/history/:firebaseUid', async (req, res) => {
-  try {
-    const { firebaseUid } = req.params;
-    const history = await UserHistory.getByUser(firebaseUid);
-    res.json({ success: true, history });
-  } catch (error) {
-    console.error('Error fetching history:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch history' });
-  }
-});
-
-// Get room details (for history view)
-app.get('/api/room/:roomId', async (req, res) => {
-  try {
-    const { roomId } = req.params;
-
-    const room = await Room.findOne({ id: roomId });
-    if (!room) {
-      return res.status(404).json({ success: false, error: 'Room not found' });
-    }
-
-    const messages = await Message.getByRoom(roomId);
-
-    res.json({
-      success: true,
-      room: room.toObject(),
-      messages,
-    });
-  } catch (error) {
-    console.error('Error fetching room:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch room' });
-  }
 });
 
 // Connect to MongoDB
