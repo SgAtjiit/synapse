@@ -19,6 +19,11 @@ const Index = () => {
     createDocument,
     deleteDocument,
     setTyping,
+    // Video call methods
+    getSocket,
+    joinVideoCall,
+    leaveVideoCall,
+    sendVideoSignal,
   } = useSocket();
 
   // Set default username from auth user
@@ -62,6 +67,10 @@ const Index = () => {
       onDeleteDocument={deleteDocument}
       onTyping={setTyping}
       onLeave={handleLeave}
+      socket={getSocket()}
+      onJoinVideo={joinVideoCall}
+      onLeaveVideo={leaveVideoCall}
+      onSendVideoSignal={sendVideoSignal}
     />
   );
 };

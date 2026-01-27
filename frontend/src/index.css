@@ -446,4 +446,19 @@
   .ProseMirror:focus-visible {
     outline: none;
   }
+
+  /* Autocomplete suggestion styling */
+  .autocomplete-suggestion {
+    opacity: 0.4;
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+    font-style: italic;
+  }
+
+  /* Tab hint for autocomplete */
+  .autocomplete-suggestion::after {
+    content: ' (Tab)';
+    font-size: 0.75em;
+    opacity: 0.6;
+  }
 }

@@ -3,7 +3,9 @@ import { ChatPanel } from '@/components/ChatPanel';
 import { DocumentEditor } from '@/components/DocumentEditor';
 import { DocumentList } from '@/components/DocumentList';
 import { PresenceBar } from '@/components/PresenceBar';
+import { VideoPanel } from '@/components/VideoPanel';
 import { Message, Room, PresenceUser } from '@/types';
+import { Socket } from 'socket.io-client';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ResizableHandle,
@@ -33,6 +35,11 @@ interface WorkspaceProps {
   onDeleteDocument: (documentId: string) => void;
   onTyping: (isTyping: boolean) => void;
   onLeave: () => void;
+  // Video call props
+  socket: Socket | null;
+  onJoinVideo: () => void;
+  onLeaveVideo: () => void;
+  onSendVideoSignal: (targetId: string, signal: unknown) => void;
 }
 
 export function Workspace({
@@ -47,6 +54,10 @@ export function Workspace({
   onDeleteDocument,
   onTyping,
   onLeave,
+  socket,
+  onJoinVideo,
+  onLeaveVideo,
+  onSendVideoSignal,
 }: WorkspaceProps) {
   const [activeDocumentId, setActiveDocumentId] = useState<string>('');
   const [showChat, setShowChat] = useState(true);
@@ -171,22 +182,35 @@ export function Workspace({
           </>
         )}
 
-        {/* Document List - Sidebar */}
+        {/* Document List & Video Panel - Sidebar */}
         {showDocuments && (
           <>
             <ResizablePanel
               defaultSize={15}
               minSize={10}
-              maxSize={25}
+              maxSize={30}
               className="transition-all duration-200"
             >
-              <DocumentList
-                documents={room.documents}
-                activeDocumentId={activeDocumentId}
-                onSelect={setActiveDocumentId}
-                onCreate={handleCreateDocument}
-                onDelete={onDeleteDocument}
-              />
+              <div className="flex flex-col h-full">
+                <div className="flex-1 overflow-hidden">
+                  <DocumentList
+                    documents={room.documents}
+                    activeDocumentId={activeDocumentId}
+                    onSelect={setActiveDocumentId}
+                    onCreate={handleCreateDocument}
+                    onDelete={onDeleteDocument}
+                  />
+                </div>
+                {/* Video Panel */}
+                <VideoPanel
+                  socket={socket}
+                  roomId={room.id}
+                  currentUser={currentUser}
+                  onJoinVideo={onJoinVideo}
+                  onLeaveVideo={onLeaveVideo}
+                  onSendSignal={onSendVideoSignal}
+                />
+              </div>
             </ResizablePanel>
             <ResizableHandle withHandle className="bg-border hover:bg-primary/50 transition-colors" />
           </>

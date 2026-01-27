@@ -15,4 +15,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    // Polyfill for simple-peer (WebRTC library)
+    global: 'globalThis',
+  },
 }));

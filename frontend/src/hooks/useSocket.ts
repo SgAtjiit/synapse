@@ -16,6 +16,13 @@ interface UseSocketReturn {
   createDocument: (title: string) => void;
   deleteDocument: (documentId: string) => void;
   setTyping: (isTyping: boolean) => void;
+  // Video call methods
+  getSocket: () => Socket | null;
+  getCurrentRoom: () => string | null;
+  joinVideoCall: () => void;
+  leaveVideoCall: () => void;
+  sendVideoSignal: (targetId: string, signal: unknown) => void;
+  getVideoUsers: () => void;
 }
 
 export function useSocket(): UseSocketReturn {
@@ -179,6 +186,34 @@ export function useSocket(): UseSocketReturn {
     }
   }, []);
 
+  // Video call methods
+  const getSocket = useCallback(() => socketRef.current, []);
+  const getCurrentRoom = useCallback(() => currentRoomRef.current, []);
+
+  const joinVideoCall = useCallback(() => {
+    if (socketRef.current && currentRoomRef.current) {
+      socketRef.current.emit('video-join', { roomId: currentRoomRef.current });
+    }
+  }, []);
+
+  const leaveVideoCall = useCallback(() => {
+    if (socketRef.current && currentRoomRef.current) {
+      socketRef.current.emit('video-leave', { roomId: currentRoomRef.current });
+    }
+  }, []);
+
+  const sendVideoSignal = useCallback((targetId: string, signal: unknown) => {
+    if (socketRef.current) {
+      socketRef.current.emit('video-signal', { targetId, signal });
+    }
+  }, []);
+
+  const getVideoUsers = useCallback(() => {
+    if (socketRef.current && currentRoomRef.current) {
+      socketRef.current.emit('video-get-users', { roomId: currentRoomRef.current });
+    }
+  }, []);
+
   return {
     isConnected,
     room,
@@ -191,5 +226,12 @@ export function useSocket(): UseSocketReturn {
     createDocument,
     deleteDocument,
     setTyping,
+    // Video call methods
+    getSocket,
+    getCurrentRoom,
+    joinVideoCall,
+    leaveVideoCall,
+    sendVideoSignal,
+    getVideoUsers,
   };
 }

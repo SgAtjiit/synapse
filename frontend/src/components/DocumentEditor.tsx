@@ -13,6 +13,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import TextAlign from '@tiptap/extension-text-align';
 import CharacterCount from '@tiptap/extension-character-count';
 import { FontSize } from '@/extensions/FontSize';
+import { AutoComplete } from '@/extensions/AutoComplete';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -36,7 +37,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 // @ts-ignore
 import { asBlob } from 'html-docx-js-typescript';
 import { saveAs } from 'file-saver';
@@ -50,11 +51,45 @@ interface DocumentEditorProps {
   onContentChange: (content: string) => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 export function DocumentEditor({ content, users, currentUser, onContentChange }: DocumentEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [imageWidth, setImageWidth] = useState('');
   const [imageHeight, setImageHeight] = useState('');
   const [isImageSelected, setIsImageSelected] = useState(false);
+  const [suggestion, setSuggestion] = useState('');
+  const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTextRef = useRef('');
+
+  // Fetch autocomplete suggestion
+  const fetchSuggestion = useCallback(async (text: string) => {
+    if (text.length < 10) {
+      setSuggestion('');
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/autocomplete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await response.json();
+      if (data.success && data.completion) {
+        setSuggestion(data.completion);
+      } else {
+        setSuggestion('');
+      }
+    } catch (error) {
+      console.error('Autocomplete error:', error);
+      setSuggestion('');
+    }
+  }, []);
+
+  // Clear suggestion when accepted
+  const handleAcceptSuggestion = useCallback(() => {
+    setSuggestion('');
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -78,6 +113,10 @@ export function DocumentEditor({ content, users, currentUser, onContentChange }:
         types: ['heading', 'paragraph'],
       }),
       CharacterCount,
+      AutoComplete.configure({
+        suggestion: suggestion,
+        onAccept: handleAcceptSuggestion,
+      }),
     ],
     content: content,
     editorProps: {
@@ -92,6 +131,20 @@ export function DocumentEditor({ content, users, currentUser, onContentChange }:
 
       // Simulate save delay
       setTimeout(() => setIsSaving(false), 500);
+
+      // Autocomplete: debounce and fetch suggestion
+      const plainText = editor.getText();
+      if (plainText !== lastTextRef.current) {
+        lastTextRef.current = plainText;
+        setSuggestion(''); // Clear current suggestion while typing
+
+        if (autocompleteTimeoutRef.current) {
+          clearTimeout(autocompleteTimeoutRef.current);
+        }
+        autocompleteTimeoutRef.current = setTimeout(() => {
+          fetchSuggestion(plainText);
+        }, 800); // 800ms debounce
+      }
     },
     onSelectionUpdate: ({ editor }) => {
       setIsImageSelected(editor.isActive('image'));
@@ -106,6 +159,16 @@ export function DocumentEditor({ content, users, currentUser, onContentChange }:
       }
     }
   }, [content, editor]);
+
+  // Sync suggestion to editor storage
+  useEffect(() => {
+    if (editor && editor.extensionManager.extensions.find(ext => ext.name === 'autoComplete')) {
+      // @ts-ignore - Extension storage is dynamically typed
+      editor.storage.autoComplete.suggestion = suggestion;
+      // Force re-render to update decorations
+      editor.view.dispatch(editor.state.tr);
+    }
+  }, [suggestion, editor]);
 
   const handleDownloadDOCX = async () => {
     if (!editor) return;

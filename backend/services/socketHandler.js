@@ -8,6 +8,9 @@ import { generateId, getUserColor } from '../utils/helpers.js';
 // Store connected users by room
 const roomUsers = new Map(); // roomId -> Map(socketId -> user)
 
+// Store video call participants by room
+const videoUsers = new Map(); // roomId -> Set(socketId)
+
 export function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
@@ -278,6 +281,90 @@ export function setupSocketHandlers(io) {
       }
     });
 
+    // ============ VIDEO CALL SIGNALING ============
+
+    // Join video call
+    socket.on('video-join', ({ roomId }) => {
+      if (!currentUser || !currentRoom) return;
+
+      console.log(`${currentUser.username} joining video call in room ${roomId}`);
+
+      // Initialize video users set for this room if needed
+      if (!videoUsers.has(roomId)) {
+        videoUsers.set(roomId, new Set());
+      }
+
+      const roomVideoUsers = videoUsers.get(roomId);
+
+      // Get existing video users to send to the new joiner
+      const existingUsers = Array.from(roomVideoUsers).filter(id => id !== socket.id);
+
+      // Notify new user about existing video users
+      socket.emit('video-users', {
+        users: existingUsers.map(id => {
+          const user = roomUsers.get(roomId)?.get(id);
+          return { id, username: user?.username || 'Unknown' };
+        })
+      });
+
+      // Add new user to video call
+      roomVideoUsers.add(socket.id);
+
+      // Notify others that a new user joined video
+      socket.to(roomId).emit('video-user-joined', {
+        userId: socket.id,
+        username: currentUser.username
+      });
+    });
+
+    // Relay WebRTC signaling data
+    socket.on('video-signal', ({ targetId, signal }) => {
+      if (!currentUser) return;
+
+      console.log(`Relaying signal from ${currentUser.username} (${socket.id}) to ${targetId}`);
+
+      // Send signal to specific peer
+      io.to(targetId).emit('video-signal', {
+        callerId: socket.id,
+        callerName: currentUser.username,
+        signal
+      });
+    });
+
+    // Leave video call
+    socket.on('video-leave', ({ roomId }) => {
+      if (!currentRoom) return;
+
+      console.log(`User leaving video call in room ${roomId}`);
+
+      const roomVideoUsers = videoUsers.get(roomId);
+      if (roomVideoUsers) {
+        roomVideoUsers.delete(socket.id);
+
+        // Clean up empty video rooms
+        if (roomVideoUsers.size === 0) {
+          videoUsers.delete(roomId);
+        }
+      }
+
+      // Notify others
+      socket.to(roomId).emit('video-user-left', { userId: socket.id });
+    });
+
+    // Get current video users in room
+    socket.on('video-get-users', ({ roomId }) => {
+      const roomVideoUsers = videoUsers.get(roomId);
+      if (roomVideoUsers) {
+        const users = Array.from(roomVideoUsers).map(id => {
+          const user = roomUsers.get(roomId)?.get(id);
+          return { id, username: user?.username || 'Unknown' };
+        });
+        socket.emit('video-users', { users });
+      } else {
+        socket.emit('video-users', { users: [] });
+      }
+    });
+
     socket.on('typing-stop', ({ roomId }) => {
       if (!currentUser || !currentRoom) return;
 
@@ -321,6 +408,17 @@ export function setupSocketHandlers(io) {
 
           if (users.size === 0) {
             roomUsers.delete(currentRoom);
+          }
+        }
+
+        // Clean up video call on disconnect
+        const roomVideoUsers = videoUsers.get(currentRoom);
+        if (roomVideoUsers && roomVideoUsers.has(socket.id)) {
+          roomVideoUsers.delete(socket.id);
+          io.to(currentRoom).emit('video-user-left', { userId: socket.id });
+
+          if (roomVideoUsers.size === 0) {
+            videoUsers.delete(currentRoom);
           }
         }
       }
