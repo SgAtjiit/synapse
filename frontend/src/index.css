@@ -462,3 +462,58 @@
     opacity: 0.6;
   }
 }
+
+/* Mobile responsive utilities */
+@layer utilities {
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 767px) {
+
+  /* Better touch targets */
+  .prose {
+    font-size: 16px !important;
+  }
+
+  /* Prevent zoom on input focus in iOS */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Smoother scrolling on mobile */
+  .overflow-auto,
+  .overflow-y-auto,
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide resize handles on mobile */
+  [data-panel-group-direction="horizontal"] [data-resize-handle] {
+    display: none !important;
+  }
+
+  /* Full height panels on mobile */
+  [data-panel] {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+}

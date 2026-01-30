@@ -3,9 +3,7 @@ import { ChatPanel } from '@/components/ChatPanel';
 import { DocumentEditor } from '@/components/DocumentEditor';
 import { DocumentList } from '@/components/DocumentList';
 import { PresenceBar } from '@/components/PresenceBar';
-import { VideoPanel } from '@/components/VideoPanel';
 import { Message, Room, PresenceUser } from '@/types';
-import { Socket } from 'socket.io-client';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ResizableHandle,
@@ -22,6 +20,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { MessageSquare, FileText, Edit3 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface WorkspaceProps {
   room: Room;
@@ -35,12 +35,9 @@ interface WorkspaceProps {
   onDeleteDocument: (documentId: string) => void;
   onTyping: (isTyping: boolean) => void;
   onLeave: () => void;
-  // Video call props
-  socket: Socket | null;
-  onJoinVideo: () => void;
-  onLeaveVideo: () => void;
-  onSendVideoSignal: (targetId: string, signal: unknown) => void;
 }
+
+type MobileTab = 'chat' | 'docs' | 'editor';
 
 export function Workspace({
   room,
@@ -54,20 +51,28 @@ export function Workspace({
   onDeleteDocument,
   onTyping,
   onLeave,
-  socket,
-  onJoinVideo,
-  onLeaveVideo,
-  onSendVideoSignal,
 }: WorkspaceProps) {
   const [activeDocumentId, setActiveDocumentId] = useState<string>('');
   const [showChat, setShowChat] = useState(true);
   const [showDocuments, setShowDocuments] = useState(true);
   const [showNewDocDialog, setShowNewDocDialog] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState('New Document');
+  const [mobileTab, setMobileTab] = useState<MobileTab>('editor');
+  const [isMobile, setIsMobile] = useState(false);
   const { toast } = useToast();
 
   const prevMessagesLength = useRef(messages.length);
   const prevUsersLength = useRef(users.length);
+
+  // Detect mobile screen
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Set initial active document
   useEffect(() => {
@@ -79,44 +84,52 @@ export function Workspace({
     }
   }, [room.documents, activeDocumentId]);
 
-  // Toast for new messages
+  // Show toast for new messages
   useEffect(() => {
     if (messages.length > prevMessagesLength.current) {
-      const newMessage = messages[messages.length - 1];
-      // Don't show notification for own messages, AI messages, or undefined sender
-      const isOwnMessage = newMessage.sender === currentUser;
-      const isAiMessage = newMessage.isAi === true;
-      const isUndefined = !newMessage.sender;
+      const lastMessage = messages[messages.length - 1];
+      const sender = lastMessage && typeof lastMessage === 'object' && 'sender' in lastMessage
+        ? (lastMessage as { sender?: string }).sender
+        : undefined;
+      const isAi = lastMessage && typeof lastMessage === 'object' && 'isAi' in lastMessage
+        ? (lastMessage as { isAi?: boolean }).isAi
+        : false;
 
-      if (!isOwnMessage && !isAiMessage && !isUndefined) {
+      if (sender && sender !== currentUser && !isAi) {
         toast({
-          title: `New message from ${newMessage.sender}`,
-          description: newMessage.content.substring(0, 50) + (newMessage.content.length > 50 ? '...' : ''),
+          title: "New message",
+          description: `${sender} sent a message`,
+          duration: 3000,
         });
       }
     }
     prevMessagesLength.current = messages.length;
   }, [messages, currentUser, toast]);
 
-  // Toast for user join/leave
+  // Show toast for user join/leave
   useEffect(() => {
     if (users.length > prevUsersLength.current) {
-      // User joined (simplified check, ideally we'd find who)
-      toast({
-        title: "User Joined",
-        description: "A new user has joined the room.",
+      const newUsers = users.slice(prevUsersLength.current);
+      newUsers.forEach(user => {
+        if (user.username !== currentUser) {
+          toast({
+            title: "User joined",
+            description: `${user.username} joined the room`,
+            duration: 3000,
+          });
+        }
       });
     } else if (users.length < prevUsersLength.current) {
       toast({
-        title: "User Left",
-        description: "A user has left the room.",
-        variant: "destructive",
+        title: "User left",
+        description: "A user left the room",
+        duration: 3000,
       });
     }
     prevUsersLength.current = users.length;
-  }, [users, toast]);
+  }, [users, currentUser, toast]);
 
-  const activeDocument = room.documents.find(d => d.id === activeDocumentId);
+  const activeDocument = room.documents.find(doc => doc.id === activeDocumentId);
 
   const handleDocumentChange = useCallback((content: string) => {
     if (activeDocumentId) {
@@ -124,19 +137,16 @@ export function Workspace({
     }
   }, [activeDocumentId, onDocumentChange]);
 
-  const handleCreateDocument = () => {
+  const handleCreateDocument = useCallback(() => {
+    setNewDocTitle('New Document');
     setShowNewDocDialog(true);
-  };
+  }, []);
 
   const confirmCreateDocument = () => {
     if (newDocTitle.trim()) {
       onCreateDocument(newDocTitle.trim());
-      toast({
-        title: "Document Created",
-        description: `"${newDocTitle.trim()}" has been created.`,
-      });
-      setNewDocTitle('New Document');
       setShowNewDocDialog(false);
+      setNewDocTitle('New Document');
     }
   };
 
@@ -146,6 +156,144 @@ export function Workspace({
     color: user.color || getUserColor(user.username),
   }));
 
+  // Mobile bottom navigation
+  const MobileNav = () => (
+    <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border z-40 safe-area-pb">
+      <div className="flex items-center justify-around h-14">
+        <button
+          onClick={() => setMobileTab('chat')}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full transition-colors",
+            mobileTab === 'chat' ? "text-primary" : "text-muted-foreground"
+          )}
+        >
+          <MessageSquare className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Chat</span>
+        </button>
+        <button
+          onClick={() => setMobileTab('docs')}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full transition-colors",
+            mobileTab === 'docs' ? "text-primary" : "text-muted-foreground"
+          )}
+        >
+          <FileText className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Docs</span>
+        </button>
+        <button
+          onClick={() => setMobileTab('editor')}
+          className={cn(
+            "flex flex-col items-center justify-center flex-1 h-full transition-colors",
+            mobileTab === 'editor' ? "text-primary" : "text-muted-foreground"
+          )}
+        >
+          <Edit3 className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Editor</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  // Mobile content renderer
+  const renderMobileContent = () => {
+    switch (mobileTab) {
+      case 'chat':
+        return (
+          <ChatPanel
+            messages={messages}
+            users={usersWithColors}
+            currentUser={currentUser}
+            onSendMessage={onSendMessage}
+            onTyping={onTyping}
+          />
+        );
+      case 'docs':
+        return (
+          <div className="flex flex-col h-full">
+            <DocumentList
+              documents={room.documents}
+              activeDocumentId={activeDocumentId}
+              onSelect={(id) => {
+                setActiveDocumentId(id);
+                setMobileTab('editor');
+              }}
+              onCreate={handleCreateDocument}
+              onDelete={onDeleteDocument}
+            />
+          </div>
+        );
+      case 'editor':
+        return activeDocument ? (
+          <DocumentEditor
+            key={activeDocument.id}
+            content={activeDocument.content}
+            users={usersWithColors}
+            currentUser={currentUser}
+            onContentChange={handleDocumentChange}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground p-4 text-center">
+            Select or create a document to start editing
+          </div>
+        );
+    }
+  };
+
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="h-screen flex flex-col synapse-gradient">
+        <PresenceBar
+          roomId={room.id}
+          users={usersWithColors}
+          currentUser={currentUser}
+          isConnected={isConnected}
+          onLeave={onLeave}
+        />
+
+        <div className="flex-1 overflow-hidden pb-14">
+          {renderMobileContent()}
+        </div>
+
+        <MobileNav />
+
+        {/* New Document Dialog */}
+        <Dialog open={showNewDocDialog} onOpenChange={setShowNewDocDialog}>
+          <DialogContent className="w-[90%] max-w-md">
+            <DialogHeader>
+              <DialogTitle>Create New Document</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="doc-title">Document Title</Label>
+                <Input
+                  id="doc-title"
+                  value={newDocTitle}
+                  onChange={(e) => setNewDocTitle(e.target.value)}
+                  placeholder="Enter document title"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      confirmCreateDocument();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex-row gap-2">
+              <Button variant="outline" onClick={() => setShowNewDocDialog(false)} className="flex-1">
+                Cancel
+              </Button>
+              <Button onClick={confirmCreateDocument} className="flex-1">
+                Create
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="h-screen flex flex-col synapse-gradient">
       <PresenceBar
@@ -191,26 +339,13 @@ export function Workspace({
               maxSize={30}
               className="transition-all duration-200"
             >
-              <div className="flex flex-col h-full">
-                <div className="flex-1 overflow-hidden">
-                  <DocumentList
-                    documents={room.documents}
-                    activeDocumentId={activeDocumentId}
-                    onSelect={setActiveDocumentId}
-                    onCreate={handleCreateDocument}
-                    onDelete={onDeleteDocument}
-                  />
-                </div>
-                {/* Video Panel */}
-                <VideoPanel
-                  socket={socket}
-                  roomId={room.id}
-                  currentUser={currentUser}
-                  onJoinVideo={onJoinVideo}
-                  onLeaveVideo={onLeaveVideo}
-                  onSendSignal={onSendVideoSignal}
-                />
-              </div>
+              <DocumentList
+                documents={room.documents}
+                activeDocumentId={activeDocumentId}
+                onSelect={setActiveDocumentId}
+                onCreate={handleCreateDocument}
+                onDelete={onDeleteDocument}
+              />
             </ResizablePanel>
             <ResizableHandle withHandle className="bg-border hover:bg-primary/50 transition-colors" />
           </>

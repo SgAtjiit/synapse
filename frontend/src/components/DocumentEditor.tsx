@@ -263,240 +263,58 @@ export function DocumentEditor({ content, users, currentUser, onContentChange }:
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="p-4 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <FileText className="w-4 h-4 text-primary" />
+      {/* Header - Simplified for mobile */}
+      <div className="p-2 sm:p-4 border-b border-border">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-semibold text-foreground text-sm sm:text-base truncate">Shared Document</h2>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                {editor.storage.characterCount?.words?.() || 0} words
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-semibold text-foreground">Shared Document</h2>
-            <p className="text-xs text-muted-foreground">
-              {editor.storage.characterCount?.words?.() || 0} words
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          {/* Toolbar */}
-          <div className="flex items-center gap-1 mr-4 border-r border-border pr-4 flex-wrap">
-            {/* Basic Formatting */}
-            <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'bg-secondary' : ''}>
-              <Bold className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'bg-secondary' : ''}>
-              <Italic className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-border mx-1" />
-
-            {/* Alignment */}
-            <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().setTextAlign('left').run()} className={editor.isActive({ textAlign: 'left' }) ? 'bg-secondary' : ''}>
-              <AlignLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().setTextAlign('center').run()} className={editor.isActive({ textAlign: 'center' }) ? 'bg-secondary' : ''}>
-              <AlignCenter className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().setTextAlign('right').run()} className={editor.isActive({ textAlign: 'right' }) ? 'bg-secondary' : ''}>
-              <AlignRight className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-border mx-1" />
-
-            {/* Lists */}
-            <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleBulletList().run()} className={editor.isActive('bulletList') ? 'bg-secondary' : ''}>
-              <List className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={editor.isActive('orderedList') ? 'bg-secondary' : ''}>
-              <ListOrdered className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-border mx-1" />
-
-            {/* Fonts & Colors */}
+          <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+            {/* Download button */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" title="Font Family">
-                  <Type className="w-4 h-4" />
+                <Button variant="outline" size="sm" className="gap-1 sm:gap-2 h-8 px-2 sm:px-3">
+                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Download</span>
+                  <ChevronDown className="w-3 h-3 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('Inter').run()}>Inter</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('Comic Sans MS, Comic Sans').run()}>Comic Sans</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('serif').run()}>Serif</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('monospace').run()}>Monospace</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().unsetFontFamily().run()}>Default</DropdownMenuItem>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleDownloadDOCX}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Word Document (.docx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadPDF}>
+                  <FileType className="w-4 h-4 mr-2" />
+                  PDF Document (.pdf)
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-12 px-0">
-                  <span className="text-xs">Size</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {[12, 14, 16, 18, 20, 24, 30].map(size => (
-                  <DropdownMenuItem key={size} onClick={() => editor.chain().focus().setFontSize(`${size}px`).run()}>
-                    {size}px
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuItem onClick={() => editor.chain().focus().unsetFontSize().run()}>Default</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="relative flex items-center justify-center w-8 h-8">
-              <input
-                type="color"
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                onInput={event => editor.chain().focus().setColor((event.target as HTMLInputElement).value).run()}
-                value={editor.getAttributes('textStyle').color || '#000000'}
-                title="Text Color"
-              />
-              <Palette className="w-4 h-4 pointer-events-none" />
+            {/* Save indicator */}
+            <div className={cn(
+              "flex items-center gap-1 text-xs transition-opacity duration-200",
+              isSaving ? "opacity-100" : "opacity-0"
+            )}>
+              <Save className="w-3 h-3 text-synapse-warning animate-pulse" />
             </div>
 
-            <div className="w-px h-6 bg-border mx-1" />
-
-            {/* Insert Image */}
-            <Button variant="ghost" size="icon" onClick={addImage} title="Insert Image">
-              <ImageIcon className="w-4 h-4" />
-            </Button>
-
-            {/* Image Resize Controls - Only visible when image is selected */}
-            {isImageSelected && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" title="Image Options" className="bg-primary/10">
-                    <Move className="w-4 h-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold">Image Options</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => editor.chain().focus().deleteSelection().run()}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-xs">Alignment</Label>
-                      <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-md">
-                        <Button variant="ghost" size="sm" className="flex-1 h-7" onClick={() => editor.chain().focus().updateAttributes('image', { style: 'float: left; margin-right: 1rem;' }).run()}>
-                          <AlignLeft className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="flex-1 h-7" onClick={() => editor.chain().focus().updateAttributes('image', { style: 'display: block; margin: 0 auto;' }).run()}>
-                          <AlignCenter className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="flex-1 h-7" onClick={() => editor.chain().focus().updateAttributes('image', { style: 'float: right; margin-left: 1rem;' }).run()}>
-                          <AlignRight className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-xs">Quick Resize</Label>
-                      <div className="grid grid-cols-4 gap-1">
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '25%', height: 'auto' }).run()}>25%</Button>
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '50%', height: 'auto' }).run()}>50%</Button>
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '75%', height: 'auto' }).run()}>75%</Button>
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '100%', height: 'auto' }).run()}>100%</Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-xs">Custom Size</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-[10px] text-muted-foreground">Width</Label>
-                          <Input
-                            className="h-7 text-xs"
-                            placeholder="e.g. 300px"
-                            value={imageWidth}
-                            onChange={(e) => setImageWidth(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px] text-muted-foreground">Height</Label>
-                          <Input
-                            className="h-7 text-xs"
-                            placeholder="e.g. 200px"
-                            value={imageHeight}
-                            onChange={(e) => setImageHeight(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <Button size="sm" className="w-full h-7 text-xs" onClick={applyImageSize}>Apply Size</Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {/* Table */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" title="Table">
-                  <TableIcon className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
-                  Insert Table (3x3)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => editor.chain().focus().addColumnAfter().run()}>Add Column</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().deleteColumn().run()}>Delete Column</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().addRowAfter().run()}>Add Row</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().deleteRow().run()}>Delete Row</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => editor.chain().focus().deleteTable().run()} className="text-destructive">
-                  <Trash2 className="w-4 h-4 mr-2" /> Delete Table
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="w-4 h-4" />
-                Download
-                <ChevronDown className="w-3 h-3 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDownloadDOCX}>
-                <FileText className="w-4 h-4 mr-2" />
-                Word Document (.docx)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadPDF}>
-                <FileType className="w-4 h-4 mr-2" />
-                PDF Document (.pdf)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Save indicator */}
-          <div className={cn(
-            "flex items-center gap-1.5 text-xs transition-opacity duration-200",
-            isSaving ? "opacity-100" : "opacity-0"
-          )}>
-            <Save className="w-3 h-3 text-synapse-warning animate-pulse" />
-            <span className="text-muted-foreground">Saving...</span>
-          </div>
-
-          {/* Collaborators */}
-          {otherUsers.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <div className="flex -space-x-2">
+            {/* Collaborators */}
+            {otherUsers.length > 0 && (
+              <div className="flex -space-x-1.5 sm:-space-x-2">
                 {otherUsers.slice(0, 3).map((user) => (
                   <div
                     key={user.id}
-                    className="w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-background flex items-center justify-center text-[8px] sm:text-[10px] font-bold"
                     style={{ backgroundColor: user.color }}
                     title={user.username}
                   >
@@ -504,8 +322,192 @@ export function DocumentEditor({ content, users, currentUser, onContentChange }:
                   </div>
                 ))}
               </div>
-            </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar - Horizontal scrolling on mobile */}
+      <div className="border-b border-border overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-0.5 sm:gap-1 p-2 min-w-max">
+          {/* Basic Formatting */}
+          <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleBold().run()} className={cn("h-8 w-8 flex-shrink-0", editor.isActive('bold') ? 'bg-secondary' : '')}>
+            <Bold className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleItalic().run()} className={cn("h-8 w-8 flex-shrink-0", editor.isActive('italic') ? 'bg-secondary' : '')}>
+            <Italic className="w-4 h-4" />
+          </Button>
+
+          <div className="w-px h-6 bg-border mx-0.5 sm:mx-1 flex-shrink-0" />
+
+          {/* Alignment */}
+          <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().setTextAlign('left').run()} className={cn("h-8 w-8 flex-shrink-0", editor.isActive({ textAlign: 'left' }) ? 'bg-secondary' : '')}>
+            <AlignLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().setTextAlign('center').run()} className={cn("h-8 w-8 flex-shrink-0", editor.isActive({ textAlign: 'center' }) ? 'bg-secondary' : '')}>
+            <AlignCenter className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().setTextAlign('right').run()} className={cn("h-8 w-8 flex-shrink-0", editor.isActive({ textAlign: 'right' }) ? 'bg-secondary' : '')}>
+            <AlignRight className="w-4 h-4" />
+          </Button>
+
+          <div className="w-px h-6 bg-border mx-0.5 sm:mx-1 flex-shrink-0" />
+
+          {/* Lists */}
+          <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleBulletList().run()} className={cn("h-8 w-8 flex-shrink-0", editor.isActive('bulletList') ? 'bg-secondary' : '')}>
+            <List className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={cn("h-8 w-8 flex-shrink-0", editor.isActive('orderedList') ? 'bg-secondary' : '')}>
+            <ListOrdered className="w-4 h-4" />
+          </Button>
+
+          <div className="w-px h-6 bg-border mx-0.5 sm:mx-1 flex-shrink-0" />
+
+          {/* Font Family */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" title="Font Family" className="h-8 w-8 flex-shrink-0">
+                <Type className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('Inter').run()}>Inter</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('Comic Sans MS, Comic Sans').run()}>Comic Sans</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('serif').run()}>Serif</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setFontFamily('monospace').run()}>Monospace</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().unsetFontFamily().run()}>Default</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Font Size */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-10 px-0 flex-shrink-0">
+                <span className="text-xs">Size</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {[12, 14, 16, 18, 20, 24, 30].map(size => (
+                <DropdownMenuItem key={size} onClick={() => editor.chain().focus().setFontSize(`${size}px`).run()}>
+                  {size}px
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuItem onClick={() => editor.chain().focus().unsetFontSize().run()}>Default</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Color picker */}
+          <div className="relative flex items-center justify-center w-8 h-8 flex-shrink-0">
+            <input
+              type="color"
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              onInput={event => editor.chain().focus().setColor((event.target as HTMLInputElement).value).run()}
+              value={editor.getAttributes('textStyle').color || '#000000'}
+              title="Text Color"
+            />
+            <Palette className="w-4 h-4 pointer-events-none" />
+          </div>
+
+          <div className="w-px h-6 bg-border mx-0.5 sm:mx-1 flex-shrink-0" />
+
+          {/* Insert Image */}
+          <Button variant="ghost" size="icon" onClick={addImage} title="Insert Image" className="h-8 w-8 flex-shrink-0">
+            <ImageIcon className="w-4 h-4" />
+          </Button>
+
+          {/* Image Resize Controls */}
+          {isImageSelected && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" title="Image Options" className="bg-primary/10 h-8 w-8 flex-shrink-0">
+                  <Move className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Image Options</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => editor.chain().focus().deleteSelection().run()}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Alignment</Label>
+                    <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-md">
+                      <Button variant="ghost" size="sm" className="flex-1 h-7" onClick={() => editor.chain().focus().updateAttributes('image', { style: 'float: left; margin-right: 1rem;' }).run()}>
+                        <AlignLeft className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="flex-1 h-7" onClick={() => editor.chain().focus().updateAttributes('image', { style: 'display: block; margin: 0 auto;' }).run()}>
+                        <AlignCenter className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="flex-1 h-7" onClick={() => editor.chain().focus().updateAttributes('image', { style: 'float: right; margin-left: 1rem;' }).run()}>
+                        <AlignRight className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Quick Resize</Label>
+                    <div className="grid grid-cols-4 gap-1">
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '25%', height: 'auto' }).run()}>25%</Button>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '50%', height: 'auto' }).run()}>50%</Button>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '75%', height: 'auto' }).run()}>75%</Button>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => editor.chain().focus().updateAttributes('image', { width: '100%', height: 'auto' }).run()}>100%</Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Custom Size</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Width</Label>
+                        <Input
+                          className="h-7 text-xs"
+                          placeholder="e.g. 300px"
+                          value={imageWidth}
+                          onChange={(e) => setImageWidth(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Height</Label>
+                        <Input
+                          className="h-7 text-xs"
+                          placeholder="e.g. 200px"
+                          value={imageHeight}
+                          onChange={(e) => setImageHeight(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <Button size="sm" className="w-full h-7 text-xs" onClick={applyImageSize}>Apply Size</Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
+
+          {/* Table */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" title="Table" className="h-8 w-8 flex-shrink-0">
+                <TableIcon className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+                Insert Table (3x3)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => editor.chain().focus().addColumnAfter().run()}>Add Column</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().deleteColumn().run()}>Delete Column</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().addRowAfter().run()}>Add Row</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().deleteRow().run()}>Delete Row</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => editor.chain().focus().deleteTable().run()} className="text-destructive">
+                <Trash2 className="w-4 h-4 mr-2" /> Delete Table
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -514,8 +516,8 @@ export function DocumentEditor({ content, users, currentUser, onContentChange }:
         <EditorContent editor={editor} className="h-full" />
       </div>
 
-      {/* Footer */}
-      <div className="px-4 pb-4 pt-2">
+      {/* Footer - Hidden on mobile to save space */}
+      <div className="hidden sm:block px-4 pb-4 pt-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground bg-secondary/30 rounded-lg px-3 py-2">
           <span>
             {otherUsers.length > 0

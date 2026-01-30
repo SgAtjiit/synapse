@@ -16,7 +16,9 @@ import {
     Clock,
     Loader2,
     Home,
+    Download,
 } from 'lucide-react';
+import { saveAs } from 'file-saver';
 
 interface HistoryEntry {
     firebaseUid: string;
@@ -123,6 +125,35 @@ export default function History() {
 
     const activeDocument = selectedRoom?.documents?.find(d => d.id === activeDocId);
 
+    // Download document as text file
+    const handleDownloadText = (doc: Document) => {
+        const blob = new Blob([doc.content || ''], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, `${doc.title || 'document'}.txt`);
+    };
+
+    // Download document as PDF
+    const handleDownloadPdf = async (doc: Document) => {
+        try {
+            const html2pdf = (await import('html2pdf.js')).default;
+            const element = document.createElement('div');
+            element.innerHTML = `<h1 style="margin-bottom: 20px;">${doc.title || 'Document'}</h1><pre style="white-space: pre-wrap; font-family: sans-serif;">${doc.content || 'Empty document'}</pre>`;
+            element.style.padding = '20px';
+            element.style.maxWidth = '800px';
+
+            const opt = {
+                margin: 10,
+                filename: `${doc.title || 'document'}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            await html2pdf().set(opt).from(element).save();
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen synapse-gradient flex items-center justify-center">
@@ -196,8 +227,8 @@ export default function History() {
                                         <div
                                             key={msg.id}
                                             className={`p-3 rounded-lg ${msg.isAI
-                                                    ? 'bg-primary/10 border border-primary/20'
-                                                    : 'bg-secondary/50'
+                                                ? 'bg-primary/10 border border-primary/20'
+                                                : 'bg-secondary/50'
                                                 }`}
                                         >
                                             <div className="flex items-center justify-between mb-1">
@@ -241,8 +272,8 @@ export default function History() {
                                             key={doc.id}
                                             onClick={() => setActiveDocId(doc.id)}
                                             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeDocId === doc.id
-                                                    ? 'bg-primary/20 text-primary'
-                                                    : 'hover:bg-secondary/50'
+                                                ? 'bg-primary/20 text-primary'
+                                                : 'hover:bg-secondary/50'
                                                 }`}
                                         >
                                             {doc.title}
@@ -263,10 +294,32 @@ export default function History() {
                     {/* Document Content */}
                     <ResizablePanel defaultSize={50} minSize={30}>
                         <div className="h-full flex flex-col bg-card/30">
-                            <div className="p-3 border-b border-border">
+                            <div className="p-3 border-b border-border flex items-center justify-between">
                                 <h3 className="font-medium">
                                     {activeDocument?.title || 'Select a document'}
                                 </h3>
+                                {activeDocument && (
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleDownloadText(activeDocument)}
+                                            title="Download as Text"
+                                        >
+                                            <Download className="w-4 h-4 mr-1" />
+                                            TXT
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleDownloadPdf(activeDocument)}
+                                            title="Download as PDF"
+                                        >
+                                            <Download className="w-4 h-4 mr-1" />
+                                            PDF
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                             <ScrollArea className="flex-1 p-4">
                                 {activeDocument ? (
